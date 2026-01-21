@@ -66,37 +66,39 @@ try:
         col_tipo = [c for c in df.columns if 'TIPO DE ACCIÓN' in c or 'TIPO DE ACCION' in c][0]
         col_accion = [c for c in df.columns if 'ACCION' in c or 'ACCIÓN' in c][0]
 
-        # --- PANEL LATERAL CON FILTRO "TODOS" ---
+        # --- PANEL LATERAL ---
         st.sidebar.header("Filtros")
-        
-        # Filtro de Persona con opción TODOS
         opciones_persona = ["TODOS"] + sorted([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
         persona_sel = st.sidebar.selectbox("Seleccionar Colaborador (Mentee):", opciones_persona)
         
-        if persona_sel == "TODOS":
-            df_persona = df
-        else:
-            df_persona = df[df[col_persona] == persona_sel]
-
-        # Filtro de Tipo de Acción
+        df_persona = df if persona_sel == "TODOS" else df[df[col_persona] == persona_sel]
         opciones_tipo = ["TODOS"] + sorted(list(df_persona[col_tipo].unique()))
         tipo_sel = st.sidebar.selectbox("Filtrar por Tipo de Acción:", opciones_tipo)
-
         df_final = df_persona if tipo_sel == "TODOS" else df_persona[df_persona[col_tipo] == tipo_sel]
 
-        # --- PORTADA ---
+        # --- PORTADA CON LAS 4 MÉTRICAS ---
         titulo_reporte = "Resumen General Organizacional" if persona_sel == "TODOS" else f"Reporte de PDI: {persona_sel}"
         st.markdown(f"### 👤 {titulo_reporte}")
         
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Habilidades Totales", len(df_final[col_habilidad].unique()))
-        m2.metric("Acciones Registradas", len(df_final))
-        m3.metric("Filtro de Acción", tipo_sel)
+        # Se añaden 4 columnas para incluir la cantidad de personas
+        m1, m2, m3, m4 = st.columns(4)
+        
+        # 1. Cantidad de Personas con PDI (Basado en la base de datos completa)
+        total_personas = len([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
+        m1.metric("Personas con PDI", total_personas)
+        
+        # 2. Habilidades (según el filtro actual)
+        m2.metric("Habilidades", len(df_final[col_habilidad].unique()))
+        
+        # 3. Acciones (según el filtro actual)
+        m3.metric("Acciones Totales", len(df_final))
+        
+        # 4. Tipo de Acción actual
+        m4.metric("Filtro Aplicado", tipo_sel)
 
         # --- GRÁFICOS ---
         st.markdown("---")
         st.subheader("📊 Análisis de Distribución (70-20-10)")
-        
         df_counts = df_final[col_tipo].value_counts().reset_index()
         df_counts.columns = [col_tipo, 'CANTIDAD']
         
@@ -109,10 +111,10 @@ try:
             fig_bar = px.bar(df_counts, x=col_tipo, y='CANTIDAD', title="Acciones por Tipo", text='CANTIDAD', color=col_tipo)
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- TABLAS DINÁMICAS ---
+        # --- TABLAS ---
         st.markdown("---")
         if persona_sel == "TODOS":
-            st.subheader("📌 Resumen de Acciones por Colaborador")
+            st.subheader("📌 Resumen por Colaborador")
             resumen_gen = df_final.groupby(col_persona).agg({col_habilidad: 'nunique', col_accion: 'count'}).reset_index()
             resumen_gen.columns = ['COLABORADOR', 'CANT. HABILIDADES', 'CANT. ACCIONES']
             st.table(resumen_gen)
@@ -123,11 +125,10 @@ try:
             st.table(resumen_hab)
 
         st.markdown("---")
-        st.subheader("📝 Detalle de Acciones en Pantalla")
-        # Mostrar MENTEE en la tabla si se selecciona TODOS
+        st.subheader("📝 Detalle de Acciones")
         columnas_ver = [col_persona, col_habilidad, col_tipo, col_accion] if persona_sel == "TODOS" else [col_habilidad, col_tipo, col_accion]
-        detalle = df_final[columnas_ver]
-        st.dataframe(detalle.reset_index(drop=True), use_container_width=True)
+        st.dataframe(df_final[columnas_ver].reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
     st.info("Cargando Dashboard...")
+
