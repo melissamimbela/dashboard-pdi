@@ -39,7 +39,7 @@ with col_titulo:
 with col_logo2:
     if logo_chinalco: st.markdown(f'<div style="text-align: right;"><img src="data:image/jpeg;base64,{logo_chinalco}" width="180"></div>', unsafe_allow_html=True)
 
-# 4. CARGA DE DATOS ROBUSTA
+# 4. CARGA DE DATOS
 @st.cache_data
 def load_data():
     try:
@@ -56,8 +56,7 @@ def load_data():
         for col in df.columns:
             df[col] = df[col].astype(str).str.strip()
         return df
-    except Exception as e:
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
 try:
     df = load_data()
@@ -67,54 +66,68 @@ try:
         col_tipo = [c for c in df.columns if 'TIPO DE ACCIÓN' in c or 'TIPO DE ACCION' in c][0]
         col_accion = [c for c in df.columns if 'ACCION' in c or 'ACCIÓN' in c][0]
 
-        # --- PANEL LATERAL ---
+        # --- PANEL LATERAL CON FILTRO "TODOS" ---
         st.sidebar.header("Filtros")
-        lista_personas = sorted([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
-        persona_sel = st.sidebar.selectbox("Seleccionar Colaborador:", lista_personas)
-        df_persona = df[df[col_persona] == persona_sel]
+        
+        # Filtro de Persona con opción TODOS
+        opciones_persona = ["TODOS"] + sorted([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
+        persona_sel = st.sidebar.selectbox("Seleccionar Colaborador (Mentee):", opciones_persona)
+        
+        if persona_sel == "TODOS":
+            df_persona = df
+        else:
+            df_persona = df[df[col_persona] == persona_sel]
 
+        # Filtro de Tipo de Acción
         opciones_tipo = ["TODOS"] + sorted(list(df_persona[col_tipo].unique()))
         tipo_sel = st.sidebar.selectbox("Filtrar por Tipo de Acción:", opciones_tipo)
 
         df_final = df_persona if tipo_sel == "TODOS" else df_persona[df_persona[col_tipo] == tipo_sel]
 
         # --- PORTADA ---
-        # AQUÍ ESTABA EL ERROR, AHORA ESTÁ CERRADO CORRECTAMENTE
-        st.markdown(f"### 👤 Reporte de PDI: {persona_sel}")
+        titulo_reporte = "Resumen General Organizacional" if persona_sel == "TODOS" else f"Reporte de PDI: {persona_sel}"
+        st.markdown(f"### 👤 {titulo_reporte}")
         
         m1, m2, m3 = st.columns(3)
-        m1.metric("Habilidades", len(df_final[col_habilidad].unique()))
-        m2.metric("Total Acciones", len(df_final))
-        m3.metric("Filtro Actual", tipo_sel)
+        m1.metric("Habilidades Totales", len(df_final[col_habilidad].unique()))
+        m2.metric("Acciones Registradas", len(df_final))
+        m3.metric("Filtro de Acción", tipo_sel)
 
         # --- GRÁFICOS ---
         st.markdown("---")
-        st.subheader("📊 Distribución de Acciones por PDI")
+        st.subheader("📊 Análisis de Distribución (70-20-10)")
         
         df_counts = df_final[col_tipo].value_counts().reset_index()
         df_counts.columns = [col_tipo, 'CANTIDAD']
         
         g1, g2 = st.columns(2)
         with g1:
-            fig_pie = px.pie(df_counts, values='CANTIDAD', names=col_tipo, title="Distribución (%)", hole=0.3)
+            fig_pie = px.pie(df_counts, values='CANTIDAD', names=col_tipo, title="Distribución por %", hole=0.3)
             fig_pie.update_traces(textinfo='percent+value')
             st.plotly_chart(fig_pie, use_container_width=True)
         with g2:
-            fig_bar = px.bar(df_counts, x=col_tipo, y='CANTIDAD', title="Cantidad por Tipo", text='CANTIDAD', color=col_tipo)
+            fig_bar = px.bar(df_counts, x=col_tipo, y='CANTIDAD', title="Acciones por Tipo", text='CANTIDAD', color=col_tipo)
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- TABLAS ---
+        # --- TABLAS DINÁMICAS ---
         st.markdown("---")
-        st.subheader("📌 Resumen de Habilidades")
-        resumen_hab = df_final.groupby(col_habilidad).agg({col_tipo: lambda x: ', '.join(sorted(x.unique())), col_accion: 'count'}).reset_index()
-        resumen_hab.columns = ['HABILIDAD', 'TIPO', 'ACCIONES']
-        st.table(resumen_hab)
+        if persona_sel == "TODOS":
+            st.subheader("📌 Resumen de Acciones por Colaborador")
+            resumen_gen = df_final.groupby(col_persona).agg({col_habilidad: 'nunique', col_accion: 'count'}).reset_index()
+            resumen_gen.columns = ['COLABORADOR', 'CANT. HABILIDADES', 'CANT. ACCIONES']
+            st.table(resumen_gen)
+        else:
+            st.subheader("📌 Resumen de Habilidades")
+            resumen_hab = df_final.groupby(col_habilidad).agg({col_tipo: lambda x: ', '.join(sorted(x.unique())), col_accion: 'count'}).reset_index()
+            resumen_hab.columns = ['HABILIDAD', 'TIPO', 'ACCIONES']
+            st.table(resumen_hab)
 
         st.markdown("---")
-        st.subheader("📝 Listado Detallado de Acciones")
-        detalle = df_final[[col_habilidad, col_tipo, col_accion]]
-        detalle.columns = ['HABILIDAD', 'TIPO', 'ACCIÓN ESPECÍFICA']
+        st.subheader("📝 Detalle de Acciones en Pantalla")
+        # Mostrar MENTEE en la tabla si se selecciona TODOS
+        columnas_ver = [col_persona, col_habilidad, col_tipo, col_accion] if persona_sel == "TODOS" else [col_habilidad, col_tipo, col_accion]
+        detalle = df_final[columnas_ver]
         st.dataframe(detalle.reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
-    st.info("Cargando datos... Verifique que los filtros coincidan con su archivo Excel.")
+    st.info("Cargando Dashboard...")
