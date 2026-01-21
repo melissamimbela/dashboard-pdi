@@ -64,41 +64,41 @@ try:
         col_persona = [c for c in df.columns if 'MENTEE' in c][0]
         col_habilidad = [c for c in df.columns if 'HABILIDAD' in c][0]
         col_tipo = [c for c in df.columns if 'TIPO DE ACCIÓN' in c or 'TIPO DE ACCION' in c][0]
-        col_accion = [c for c in df.columns if 'ACCION' in c or 'ACCIÓN' in c][0]
+        # Identificamos la columna de subtipo (usualmente llamada 'ACCION' o similar en tu Excel)
+        col_subtipo = [c for c in df.columns if 'ACCIÓN' in c or 'ACCION' in c][0]
 
-        # --- PANEL LATERAL ---
-        st.sidebar.header("Filtros")
+        # --- PANEL LATERAL CON FILTROS ---
+        st.sidebar.header("Filtros de Búsqueda")
+        
+        # 1. Filtro de Persona
         opciones_persona = ["TODOS"] + sorted([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
         persona_sel = st.sidebar.selectbox("Seleccionar Colaborador (Mentee):", opciones_persona)
+        df_f1 = df if persona_sel == "TODOS" else df[df[col_persona] == persona_sel]
         
-        df_persona = df if persona_sel == "TODOS" else df[df[col_persona] == persona_sel]
-        opciones_tipo = ["TODOS"] + sorted(list(df_persona[col_tipo].unique()))
+        # 2. Filtro de Tipo de Acción
+        opciones_tipo = ["TODOS"] + sorted(list(df_f1[col_tipo].unique()))
         tipo_sel = st.sidebar.selectbox("Filtrar por Tipo de Acción:", opciones_tipo)
-        df_final = df_persona if tipo_sel == "TODOS" else df_persona[df_persona[col_tipo] == tipo_sel]
+        df_f2 = df_f1 if tipo_sel == "TODOS" else df_f1[df_f1[col_tipo] == tipo_sel]
+
+        # 3. Filtro de Subtipo de Acción (NUEVO)
+        opciones_subtipo = ["TODOS"] + sorted(list(df_f2[col_subtipo].unique()))
+        subtipo_sel = st.sidebar.selectbox("Filtrar por Subtipo de Acción:", opciones_subtipo)
+        df_final = df_f2 if subtipo_sel == "TODOS" else df_f2[df_f2[col_subtipo] == subtipo_sel]
 
         # --- PORTADA CON LAS 4 MÉTRICAS ---
         titulo_reporte = "Resumen General Organizacional" if persona_sel == "TODOS" else f"Reporte de PDI: {persona_sel}"
         st.markdown(f"### 👤 {titulo_reporte}")
         
-        # Se añaden 4 columnas para incluir la cantidad de personas
         m1, m2, m3, m4 = st.columns(4)
-        
-        # 1. Cantidad de Personas con PDI (Basado en la base de datos completa)
-        total_personas = len([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
+        total_personas = len([p for df_persona in [df] for p in df_persona[col_persona].unique() if p not in ['nan', 'None']])
         m1.metric("Personas con PDI", total_personas)
-        
-        # 2. Habilidades (según el filtro actual)
         m2.metric("Habilidades", len(df_final[col_habilidad].unique()))
-        
-        # 3. Acciones (según el filtro actual)
         m3.metric("Acciones Totales", len(df_final))
-        
-        # 4. Tipo de Acción actual
-        m4.metric("Filtro Aplicado", tipo_sel)
+        m4.metric("Subtipo Seleccionado", subtipo_sel if subtipo_sel != "TODOS" else "Varios")
 
         # --- GRÁFICOS ---
         st.markdown("---")
-        st.subheader("📊 Análisis de Distribución (70-20-10)")
+        st.subheader("📊 Análisis de Distribución")
         df_counts = df_final[col_tipo].value_counts().reset_index()
         df_counts.columns = [col_tipo, 'CANTIDAD']
         
@@ -115,20 +115,19 @@ try:
         st.markdown("---")
         if persona_sel == "TODOS":
             st.subheader("📌 Resumen por Colaborador")
-            resumen_gen = df_final.groupby(col_persona).agg({col_habilidad: 'nunique', col_accion: 'count'}).reset_index()
+            resumen_gen = df_final.groupby(col_persona).agg({col_habilidad: 'nunique', col_subtipo: 'count'}).reset_index()
             resumen_gen.columns = ['COLABORADOR', 'CANT. HABILIDADES', 'CANT. ACCIONES']
             st.table(resumen_gen)
         else:
             st.subheader("📌 Resumen de Habilidades")
-            resumen_hab = df_final.groupby(col_habilidad).agg({col_tipo: lambda x: ', '.join(sorted(x.unique())), col_accion: 'count'}).reset_index()
-            resumen_hab.columns = ['HABILIDAD', 'TIPO', 'ACCIONES']
+            resumen_hab = df_final.groupby(col_habilidad).agg({col_tipo: lambda x: ', '.join(sorted(x.unique())), col_subtipo: 'count'}).reset_index()
+            resumen_hab.columns = ['HABILIDAD', 'TIPO', 'CANT. SUBTIPOS']
             st.table(resumen_hab)
 
         st.markdown("---")
-        st.subheader("📝 Detalle de Acciones")
-        columnas_ver = [col_persona, col_habilidad, col_tipo, col_accion] if persona_sel == "TODOS" else [col_habilidad, col_tipo, col_accion]
+        st.subheader("📝 Detalle de Acciones Específicas")
+        columnas_ver = [col_persona, col_habilidad, col_tipo, col_subtipo] if persona_sel == "TODOS" else [col_habilidad, col_tipo, col_subtipo]
         st.dataframe(df_final[columnas_ver].reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
     st.info("Cargando Dashboard...")
-
