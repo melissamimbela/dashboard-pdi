@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import base64
 
-# 1. CONFIGURACIÓN DE PÁGINA (FONDO BLANCO PARA LOGOS)
+# 1. CONFIGURACIÓN DE PÁGINA (FONDO BLANCO)
 st.set_page_config(page_title="Dashboard PDI Chinalco", layout="wide")
 
 st.markdown("""
@@ -17,6 +17,7 @@ st.markdown("""
         border-radius: 10px;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
         color: #1C2833;
+        font-size: 1.2rem !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -56,13 +57,6 @@ def load_data():
     
     for col in df.columns:
         df[col] = df[col].astype(str).str.strip()
-    
-    if 'RECURSO' in df.columns:
-        # Convertir a número y quitar decimales
-        df['RECURSO'] = pd.to_numeric(df['RECURSO'], errors='coerce').fillna(0).astype(int)
-    else:
-        df['RECURSO'] = 0
-        
     return df
 
 try:
@@ -77,36 +71,36 @@ try:
     persona_sel = st.sidebar.selectbox("Seleccionar Colaborador:", lista_personas)
     df_pers = df[df[col_persona] == persona_sel]
 
-    # --- PORTADA: RESUMEN Y RECURSOS (SIN S/ ) ---
+    # --- PORTADA: RESUMEN SIN RECURSOS ---
     st.markdown(f"### 👤 Reporte de PDI: {persona_sel}")
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Habilidades", len(df_pers[col_habilidad].unique()))
-    m2.metric("Total Acciones", len(df_pers))
-    m3.metric("Tipos de Acción", len(df_pers[col_tipo].unique()))
-    # Mostrar recurso como número entero
-    m4.metric("Recursos Totales", int(df_pers['RECURSO'].sum()))
+    m1, m2, m3 = st.columns(3)
+    
+    m1.metric("Habilidades a Desarrollar", len(df_pers[col_habilidad].unique()))
+    m2.metric("Total de Acciones", len(df_pers))
+    
+    # Mostrar cuáles son los tipos de acción en lugar de la cantidad
+    tipos_lista = ", ".join(sorted(df_pers[col_tipo].unique()))
+    m3.metric("Tipos de Acción Asignados", tipos_lista)
 
-    # --- TABLA: TIPO, CANTIDAD Y RECURSOS POR HABILIDAD ---
+    # --- TABLA: RESUMEN POR HABILIDAD ---
     st.markdown("---")
-    st.subheader("📌 Resumen de Habilidades, Tipos y Recursos")
+    st.subheader("📌 Resumen de Habilidades y Acciones")
     
     resumen_hab = df_pers.groupby(col_habilidad).agg({
         col_tipo: lambda x: ', '.join(sorted(x.unique())),
-        col_accion: 'count',
-        'RECURSO': 'sum'
+        col_accion: 'count'
     }).reset_index()
     
-    resumen_hab.columns = ['HABILIDAD', 'TIPO DE ACCIÓN', 'CANTIDAD', 'RECURSOS']
-    # Mostrar tabla con recursos como enteros
+    resumen_hab.columns = ['HABILIDAD', 'MIX DE APRENDIZAJE (TIPOS)', 'CANTIDAD DE ACCIONES']
     st.table(resumen_hab)
 
     # --- DETALLE FINAL DE ACCIONES ---
     st.markdown("---")
     st.subheader("📝 Listado Detallado de Acciones")
     
-    detalle_acciones = df_pers[[col_habilidad, col_tipo, col_accion, 'RECURSO']]
-    detalle_acciones.columns = ['HABILIDAD', 'TIPO', 'ACCIÓN ESPECÍFICA', 'RECURSO']
+    detalle_acciones = df_pers[[col_habilidad, col_tipo, col_accion]]
+    detalle_acciones.columns = ['HABILIDAD', 'TIPO', 'ACCIÓN ESPECÍFICA']
     st.dataframe(detalle_acciones.reset_index(drop=True), use_container_width=True)
 
 except Exception as e:
-    st.error(f"Error: {e}")
+    st.error(f"Error al procesar: {e}")
