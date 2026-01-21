@@ -98,4 +98,17 @@ try:
         'RECURSO': 'sum'
     }).reset_index()
     
-    resumen_hab.
+    resumen_hab.columns = ['HABILIDAD', 'TIPO DE ACCIÓN', 'CANTIDAD', 'RECURSOS']
+    st.table(resumen_hab.style.format({'RECURSOS': 'S/ {:,.2f}'}))
+
+    # --- DETALLE FINAL DE ACCIONES ---
+    st.markdown("---")
+    st.subheader("📝 Listado Detallado de Acciones")
+    
+    # Tabla con las acciones específicas de la persona
+    detalle_acciones = df_pers[[col_habilidad, col_tipo, col_accion, 'RECURSO']]
+    detalle_acciones.columns = ['HABILIDAD', 'TIPO', 'ACCIÓN ESPECÍFICA', 'RECURSO']
+    st.dataframe(detalle_acciones.reset_index(drop=True), use_container_width=True)
+
+except Exception as e:
+    st.error(f"Error: {e}")
