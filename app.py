@@ -53,8 +53,14 @@ def load_data():
         df = pd.read_excel('datos.csv.xlsx', sheet_name='PDI_CONSOLIDADOS', skiprows=header_row)
         df.columns = df.columns.astype(str).str.strip().str.upper()
         df = df.loc[:, ~df.columns.str.contains('^NAMED|^NAN|UNNAMED', case=False, na=False)]
+        
+        # Limpieza y conversión de Recursos a número entero
+        if 'RECURSO' in df.columns:
+            df['RECURSO'] = pd.to_numeric(df['RECURSO'], errors='coerce').fillna(0).astype(int)
+        
         for col in df.columns:
-            df[col] = df[col].astype(str).str.strip()
+            if col != 'RECURSO':
+                df[col] = df[col].astype(str).str.strip()
         return df
     except: return pd.DataFrame()
 
@@ -62,72 +68,62 @@ try:
     df = load_data()
     if not df.empty:
         col_persona = [c for c in df.columns if 'MENTEE' in c][0]
-        col_habilidad = [c for c in df.columns if 'HABILIDAD' in c][0]
         col_tipo = [c for c in df.columns if 'TIPO DE ACCIÓN' in c or 'TIPO DE ACCION' in c][0]
-        # Identificamos la columna de subtipo (usualmente llamada 'ACCION' o similar en tu Excel)
         col_subtipo = [c for c in df.columns if 'ACCIÓN' in c or 'ACCION' in c][0]
 
-        # --- PANEL LATERAL CON FILTROS ---
-        st.sidebar.header("Filtros de Búsqueda")
-        
-        # 1. Filtro de Persona
-        opciones_persona = ["TODOS"] + sorted([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
-        persona_sel = st.sidebar.selectbox("Seleccionar Colaborador (Mentee):", opciones_persona)
-        df_f1 = df if persona_sel == "TODOS" else df[df[col_persona] == persona_sel]
-        
-        # 2. Filtro de Tipo de Acción
-        opciones_tipo = ["TODOS"] + sorted(list(df_f1[col_tipo].unique()))
-        tipo_sel = st.sidebar.selectbox("Filtrar por Tipo de Acción:", opciones_tipo)
-        df_f2 = df_f1 if tipo_sel == "TODOS" else df_f1[df_f1[col_tipo] == tipo_sel]
+        # --- PANEL LATERAL ---
+        st.sidebar.header("Filtros Globales")
+        persona_sel = st.sidebar.selectbox("Seleccionar Colaborador:", ["TODOS"] + sorted(df[col_persona].unique()))
+        tipo_sel = st.sidebar.selectbox("Tipo de Acción:", ["TODOS"] + sorted(df[col_tipo].unique()))
+        subtipo_sel = st.sidebar.selectbox("Subtipo de Acción:", ["TODOS"] + sorted(df[col_subtipo].unique()))
 
-        # 3. Filtro de Subtipo de Acción (NUEVO)
-        opciones_subtipo = ["TODOS"] + sorted(list(df_f2[col_subtipo].unique()))
-        subtipo_sel = st.sidebar.selectbox("Filtrar por Subtipo de Acción:", opciones_subtipo)
-        df_final = df_f2 if subtipo_sel == "TODOS" else df_f2[df_f2[col_subtipo] == subtipo_sel]
+        # Filtrado lógico
+        df_f = df.copy()
+        if persona_sel != "TODOS": df_f = df_f[df_f[col_persona] == persona_sel]
+        if tipo_sel != "TODOS": df_f = df_f[df_f[col_tipo] == tipo_sel]
+        if subtipo_sel != "TODOS": df_f = df_f[df_f[col_subtipo] == subtipo_sel]
 
-        # --- PORTADA CON LAS 4 MÉTRICAS ---
-        titulo_reporte = "Resumen General Organizacional" if persona_sel == "TODOS" else f"Reporte de PDI: {persona_sel}"
-        st.markdown(f"### 👤 {titulo_reporte}")
-        
+        # --- RESUMEN DE INICIO (RECURSOS Y ESTRATEGIA) ---
+        st.markdown(f"### 📊 Resumen Ejecutivo: {persona_sel}")
         m1, m2, m3, m4 = st.columns(4)
-        total_personas = len([p for df_persona in [df] for p in df_persona[col_persona].unique() if p not in ['nan', 'None']])
-        m1.metric("Personas con PDI", total_personas)
-        m2.metric("Habilidades", len(df_final[col_habilidad].unique()))
-        m3.metric("Acciones Totales", len(df_final))
-        m4.metric("Subtipo Seleccionado", subtipo_sel if subtipo_sel != "TODOS" else "Varios")
-
-        # --- GRÁFICOS ---
-        st.markdown("---")
-        st.subheader("📊 Análisis de Distribución")
-        df_counts = df_final[col_tipo].value_counts().reset_index()
-        df_counts.columns = [col_tipo, 'CANTIDAD']
         
-        g1, g2 = st.columns(2)
-        with g1:
-            fig_pie = px.pie(df_counts, values='CANTIDAD', names=col_tipo, title="Distribución por %", hole=0.3)
-            fig_pie.update_traces(textinfo='percent+value')
-            st.plotly_chart(fig_pie, use_container_width=True)
-        with g2:
-            fig_bar = px.bar(df_counts, x=col_tipo, y='CANTIDAD', title="Acciones por Tipo", text='CANTIDAD', color=col_tipo)
-            st.plotly_chart(fig_bar, use_container_width=True)
+        m1.metric("Personas con PDI", len(df[col_persona].unique()))
+        m2.metric("Total Recursos", int(df_f['RECURSO'].sum()))
+        m3.metric("Tipos de Acción", len(df_f[col_tipo].unique()))
+        m4.metric("Subtipos Activos", len(df_f[col_subtipo].unique()))
 
-        # --- TABLAS ---
+        # --- ANÁLISIS POR TIPO Y SUBTIPO ---
         st.markdown("---")
-        if persona_sel == "TODOS":
-            st.subheader("📌 Resumen por Colaborador")
-            resumen_gen = df_final.groupby(col_persona).agg({col_habilidad: 'nunique', col_subtipo: 'count'}).reset_index()
-            resumen_gen.columns = ['COLABORADOR', 'CANT. HABILIDADES', 'CANT. ACCIONES']
-            st.table(resumen_gen)
-        else:
-            st.subheader("📌 Resumen de Habilidades")
-            resumen_hab = df_final.groupby(col_habilidad).agg({col_tipo: lambda x: ', '.join(sorted(x.unique())), col_subtipo: 'count'}).reset_index()
-            resumen_hab.columns = ['HABILIDAD', 'TIPO', 'CANT. SUBTIPOS']
-            st.table(resumen_hab)
+        st.subheader("📌 Análisis de Inversión y Estrategia")
+        
+        # Tabla resumen por Tipo y Subtipo (Sin mostrar las acciones individuales)
+        resumen_estrategia = df_f.groupby([col_tipo, col_subtipo]).agg({
+            'RECURSO': 'sum',
+            col_persona: 'nunique'
+        }).reset_index()
+        
+        resumen_estrategia.columns = ['TIPO DE ACCIÓN', 'SUBTIPO DE ACCIÓN', 'RECURSOS TOTALES', 'CANT. PERSONAS']
+        st.table(resumen_estrategia)
 
+        # --- GRÁFICOS DE DISTRIBUCIÓN ---
         st.markdown("---")
-        st.subheader("📝 Detalle de Acciones Específicas")
-        columnas_ver = [col_persona, col_habilidad, col_tipo, col_subtipo] if persona_sel == "TODOS" else [col_habilidad, col_tipo, col_subtipo]
-        st.dataframe(df_final[columnas_ver].reset_index(drop=True), use_container_width=True)
+        c1, c2 = st.columns(2)
+        
+        with c1:
+            # Distribución por Subtipo (Cantidad)
+            fig1 = px.pie(df_f, names=col_subtipo, title="Distribución por Subtipo de Acción", hole=0.4)
+            fig1.update_traces(textinfo='percent+label')
+            st.plotly_chart(fig1, use_container_width=True)
+            
+        with c2:
+            # Recursos por Tipo de Acción
+            fig2 = px.bar(resumen_estrategia, x='TIPO DE ACCIÓN', y='RECURSOS TOTALES', 
+                          color='SUBTIPO DE ACCIÓN', title="Inversión de Recursos por Categoría")
+            st.plotly_chart(fig2, use_container_width=True)
+
+        # Las acciones solo se ven en un desplegable opcional al final
+        with st.expander("Ver listado de acciones detalladas (opcional)"):
+            st.dataframe(df_f[[col_persona, col_tipo, col_subtipo]], use_container_width=True)
 
 except Exception as e:
-    st.info("Cargando Dashboard...")
+    st.info("Cargando información del PDI...")
