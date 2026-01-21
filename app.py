@@ -8,7 +8,7 @@ st.title("📊 Dashboard Interactivo PDI")
 @st.cache_data
 def load_data():
     # Buscamos el archivo en la misma carpeta
-    df = pd.read_csv('Resumen PDIs 20.01.xlsx - PDI_CONSOLIDADOS.csv')
+    df = pd.read_csv('data.csv')
     df['LÍDER MENTOR'] = df['LÍDER MENTOR'].str.replace('\n', ' ', regex=True)
     return df
 
@@ -24,5 +24,6 @@ with col1:
     st.plotly_chart(px.pie(df_filtro, names='TIPO DE ACCIÓN', title='Modelo 70-20-10'), use_container_width=True)
 with col2:
     st.plotly_chart(px.bar(df_filtro['CRITICIDAD'].value_counts().reset_index(), x='index', y='CRITICIDAD', title='Criticidad'), use_container_width=True)
+
 
 st.dataframe(df_filtro)
