@@ -8,12 +8,9 @@ st.set_page_config(page_title="Dashboard PDI Chinalco", layout="wide")
 
 st.markdown("""
     <style>
-    /* Fondo blanco para que los logos no se vean con recuadro */
     .stApp {
         background-color: #FFFFFF;
     }
-    
-    /* Estilo para las tarjetas de métricas */
     [data-testid="stMetricValue"] {
         background-color: #F8F9F9;
         padding: 15px;
@@ -34,7 +31,7 @@ def get_image_base64(path):
 # 3. ENCABEZADO
 col_logo1, col_titulo, col_logo2 = st.columns([1, 2, 1])
 logo_spira = get_image_base64("logo_spira.png")
-logo_chinalco = get_image_base64("logo_chinalco.jpg")
+logo_chinalco = get_image_base64("minera_chinalco_peru_sa_logo-Mayra-Fierro.jpg")
 
 with col_logo1:
     if logo_spira: st.markdown(f'<img src="data:image/png;base64,{logo_spira}" width="180">', unsafe_allow_html=True)
@@ -57,12 +54,12 @@ def load_data():
     df.columns = df.columns.astype(str).str.strip().str.upper()
     df = df.loc[:, ~df.columns.str.contains('^NAMED|^NAN|UNNAMED', case=False, na=False)]
     
-    # Limpiar columnas y asegurar que RECURSO sea numérico
     for col in df.columns:
         df[col] = df[col].astype(str).str.strip()
     
     if 'RECURSO' in df.columns:
-        df['RECURSO'] = pd.to_numeric(df['RECURSO'], errors='coerce').fillna(0)
+        # Convertir a número y quitar decimales
+        df['RECURSO'] = pd.to_numeric(df['RECURSO'], errors='coerce').fillna(0).astype(int)
     else:
         df['RECURSO'] = 0
         
@@ -80,13 +77,14 @@ try:
     persona_sel = st.sidebar.selectbox("Seleccionar Colaborador:", lista_personas)
     df_pers = df[df[col_persona] == persona_sel]
 
-    # --- PORTADA: RESUMEN Y RECURSOS ---
+    # --- PORTADA: RESUMEN Y RECURSOS (SIN S/ ) ---
     st.markdown(f"### 👤 Reporte de PDI: {persona_sel}")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Habilidades", len(df_pers[col_habilidad].unique()))
     m2.metric("Total Acciones", len(df_pers))
     m3.metric("Tipos de Acción", len(df_pers[col_tipo].unique()))
-    m4.metric("Total Recursos", f"S/ {df_pers['RECURSO'].sum():,.2f}")
+    # Mostrar recurso como número entero
+    m4.metric("Recursos Totales", int(df_pers['RECURSO'].sum()))
 
     # --- TABLA: TIPO, CANTIDAD Y RECURSOS POR HABILIDAD ---
     st.markdown("---")
@@ -99,13 +97,13 @@ try:
     }).reset_index()
     
     resumen_hab.columns = ['HABILIDAD', 'TIPO DE ACCIÓN', 'CANTIDAD', 'RECURSOS']
-    st.table(resumen_hab.style.format({'RECURSOS': 'S/ {:,.2f}'}))
+    # Mostrar tabla con recursos como enteros
+    st.table(resumen_hab)
 
     # --- DETALLE FINAL DE ACCIONES ---
     st.markdown("---")
     st.subheader("📝 Listado Detallado de Acciones")
     
-    # Tabla con las acciones específicas de la persona
     detalle_acciones = df_pers[[col_habilidad, col_tipo, col_accion, 'RECURSO']]
     detalle_acciones.columns = ['HABILIDAD', 'TIPO', 'ACCIÓN ESPECÍFICA', 'RECURSO']
     st.dataframe(detalle_acciones.reset_index(drop=True), use_container_width=True)
