@@ -69,4 +69,61 @@ try:
     col_persona = "MENTEE"
     col_habilidad = "HABILIDAD A DESARROLLAR"
     col_accion = "ACCION"
-    col_tipo_
+    col_tipo_accion = "TIPO DE ACCIÓN"
+
+    # --- PANEL LATERAL ---
+    st.sidebar.header("Filtros de Búsqueda")
+    lista_personas = sorted([p for p in df[col_persona].unique() if p != 'nan'])
+    persona_sel = st.sidebar.selectbox("Selecciona a la Persona (Mentee)", lista_personas)
+    
+    # Filtrar datos por la persona seleccionada
+    df_pers = df[df[col_persona] == persona_sel]
+
+    # --- CUADRO 1: PORTADA RESUMEN POR PERSONA ---
+    st.markdown(f"### 👤 Resumen de PDI: {persona_sel}")
+    
+    m1, m2, m3 = st.columns(3)
+    
+    # Cantidad de habilidades únicas
+    cant_habilidades = len(df_pers[col_habilidad].unique())
+    # Cantidad de acciones totales
+    cant_acciones = len(df_pers)
+    # Tipos de acciones únicas (Ej: 70, 20, 10)
+    cant_tipos = len(df_pers[col_tipo_accion].unique())
+
+    m1.metric("Cantidad de Habilidades", cant_habilidades)
+    m2.metric("Total de Acciones", cant_acciones)
+    m3.metric("Diversidad de Tipos", cant_tipos)
+
+    # --- CUADRO 2: DETALLE DE HABILIDADES Y ACCIONES ---
+    st.markdown("---")
+    st.subheader("📋 Detalle de Habilidades y Tipos de Acciones")
+
+    # Creamos una tabla que agrupe por Habilidad para ver cuántas acciones tiene cada una
+    resumen_tabla = df_pers.groupby([col_habilidad, col_tipo_accion]).size().reset_index(name='CANTIDAD DE ACCIONES')
+    
+    # Mejoramos la visualización de la tabla
+    st.table(resumen_tabla)
+
+    # --- GRÁFICOS ---
+    st.markdown("---")
+    c1, c2 = st.columns(2)
+    
+    with c1:
+        # Distribución de Tipos de Acciones para esta persona
+        fig_pie = px.pie(df_pers, names=col_tipo_accion, title=f"Mix de Aprendizaje (70-20-10)", hole=0.4)
+        st.plotly_chart(fig_pie, use_container_width=True)
+        
+    with c2:
+        # Acciones por Habilidad
+        fig_bar = px.bar(resumen_tabla, x=col_habilidad, y='CANTIDAD DE ACCIONES', 
+                         color=col_tipo_accion, title="Acciones por Habilidad")
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # Detalle final
+    with st.expander("Ver todas las acciones detalladas"):
+        st.dataframe(df_pers[[col_habilidad, col_accion, col_tipo_accion]], use_container_width=True)
+
+except Exception as e:
+    st.error(f"Error al generar el dashboard: {e}")
+    st.info("Asegúrate de que las columnas 'MENTEE', 'HABILIDAD A DESARROLLAR' y 'TIPO DE ACCIÓN' existan en tu Excel.")
