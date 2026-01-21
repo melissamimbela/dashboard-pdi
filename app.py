@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import base64
 
-# 1. CONFIGURACIÓN DE PÁGINA
+# 1. CONFIGURACIÓN DE PÁGINA (FONDO BLANCO PARA LOGOS)
 st.set_page_config(page_title="Dashboard PDI Chinalco", layout="wide")
 
 st.markdown("""
@@ -48,68 +48,3 @@ def load_data():
         row_values = df_raw.iloc[i].astype(str).str.upper().values
         if 'MENTEE' in row_values:
             header_row = i
-            break
-    df = pd.read_excel('datos.csv.xlsx', sheet_name='PDI_CONSOLIDADOS', skiprows=header_row)
-    df.columns = df.columns.astype(str).str.strip().str.upper()
-    df = df.loc[:, ~df.columns.str.contains('^NAMED|^NAN|UNNAMED', case=False, na=False)]
-    for col in df.columns:
-        df[col] = df[col].astype(str).str.strip()
-    return df
-
-try:
-    df = load_data()
-    col_persona = [c for c in df.columns if 'MENTEE' in c][0]
-    col_habilidad = [c for c in df.columns if 'HABILIDAD' in c][0]
-    col_tipo = [c for c in df.columns if 'TIPO DE ACCIÓN' in c or 'TIPO DE ACCION' in c][0]
-    col_accion = [c for c in df.columns if 'ACCION' in c or 'ACCIÓN' in c][0]
-
-    # --- PANEL LATERAL CON DESPLEGABLES ---
-    st.sidebar.header("Filtros")
-    
-    # 1. Desplegable de Persona
-    lista_personas = sorted([p for p in df[col_persona].unique() if p not in ['nan', 'None']])
-    persona_sel = st.sidebar.selectbox("Seleccionar Colaborador:", lista_personas)
-    df_persona = df[df[col_persona] == persona_sel]
-
-    # 2. Desplegable de Tipo de Acción (NUEVO)
-    opciones_tipo = ["TODOS"] + sorted(list(df_persona[col_tipo].unique()))
-    tipo_sel = st.sidebar.selectbox("Filtrar por Tipo de Acción:", opciones_tipo)
-
-    # Aplicar filtros
-    if tipo_sel == "TODOS":
-        df_final = df_persona
-    else:
-        df_final = df_persona[df_persona[col_tipo] == tipo_sel]
-
-    # --- PORTADA ---
-    st.markdown(f"### 👤 Reporte de PDI: {persona_sel}")
-    m1, m2, m3 = st.columns(3)
-    
-    m1.metric("Habilidades", len(df_final[col_habilidad].unique()))
-    m2.metric("Total de Acciones", len(df_final))
-    
-    tipos_presentes = ", ".join(sorted(df_final[col_tipo].unique()))
-    m3.metric("Tipos en Pantalla", tipos_presentes)
-
-    # --- TABLA RESUMEN ---
-    st.markdown("---")
-    st.subheader(f"📌 Resumen: {tipo_sel}")
-    
-    resumen_hab = df_final.groupby(col_habilidad).agg({
-        col_tipo: lambda x: ', '.join(sorted(x.unique())),
-        col_accion: 'count'
-    }).reset_index()
-    
-    resumen_hab.columns = ['HABILIDAD', 'TIPO', 'ACCIONES']
-    st.table(resumen_hab)
-
-    # --- LISTADO DETALLADO ---
-    st.markdown("---")
-    st.subheader("📝 Listado Detallado de Acciones")
-    
-    detalle_acciones = df_final[[col_habilidad, col_tipo, col_accion]]
-    detalle_acciones.columns = ['HABILIDAD', 'TIPO', 'ACCIÓN ESPECÍFICA']
-    st.dataframe(detalle_acciones.reset_index(drop=True), use_container_width=True)
-
-except Exception as e:
-    st.error(f"Error al filtrar: {e}")
