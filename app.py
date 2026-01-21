@@ -8,7 +8,7 @@ st.title("📊 Dashboard Interactivo PDI")
 @st.cache_data
 def load_data():
     # Buscamos el archivo en la misma carpeta
-    df = pd.read_csv('data.csv')
+   df = pd.read_csv('datos.csv')
     df['LÍDER MENTOR'] = df['LÍDER MENTOR'].str.replace('\n', ' ', regex=True)
     return df
 
@@ -27,3 +27,4 @@ with col2:
 
 
 st.dataframe(df_filtro)
+
