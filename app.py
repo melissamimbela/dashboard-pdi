@@ -48,13 +48,14 @@ if not df.empty:
     sel = st.sidebar.selectbox("Seleccionar Colaborador:", ["TODOS"] + sorted(df[c_per].unique()))
     df_f = df if sel == "TODOS" else df[df[c_per] == sel]
 
-    # INDICADORES
+    # INDICADORES ACTUALIZADOS (OCULTANDO PDI'S)
     header = "Análisis Consolidado" if sel == "TODOS" else f"Detalle Individual: {sel}"
     st.markdown(f"<h2 class='titulo-seccion'>👤 {header}</h2>", unsafe_allow_html=True)
-    k1, k2, k3 = st.columns(3)
-    k1.metric("Cantidad de PDI's", len(df_f[c_per].unique()))
-    k2.metric("Cantidad de Habilidades", len(df_f[c_hab].unique()))
-    k3.metric("Total de Acciones", len(df_f))
+    
+    # Solo 2 columnas para que los indicadores se vean más grandes
+    k1, k2 = st.columns(2)
+    k1.metric("Cantidad de Habilidades", len(df_f[c_hab].unique()))
+    k2.metric("Total de Acciones", len(df_f))
 
     # GRÁFICO DE TORTA
     st.markdown("<h3 class='titulo-seccion'>📊 Distribución de Acciones por PDI</h3>", unsafe_allow_html=True)
