@@ -26,24 +26,28 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. FUNCIÓN PARA CARGAR LOGOS
+# 2. FUNCIÓN PARA CARGAR LOGOS EN BASE64
 def get_image_base64(path):
     try:
         with open(path, "rb") as f:
             return base64.b64encode(f.read()).decode()
     except: return None
 
-# 3. ENCABEZADO CON NUEVO TÍTULO
+# 3. ENCABEZADO CON LOGOS Y TÍTULO
 col_logo1, col_titulo, col_logo2 = st.columns([1, 3, 1])
-logo_spira = get_image_base64("images.png")
+
+# Nombres de archivos según tu repositorio
+logo_spira = get_image_base64("images.png") 
 logo_chinalco = get_image_base64("minera_chinalco_peru_sa_logo-Mayra-Fierro.jpg")
 
 with col_logo1:
-    if logo_spira: st.markdown(f'<img src="data:image/png;base64,{logo_spira}" width="180">', unsafe_allow_html=True)
+    if logo_spira: 
+        st.markdown(f'<img src="data:image/png;base64,{logo_spira}" width="180">', unsafe_allow_html=True)
 with col_titulo:
-    st.markdown("<h1 style='text-align: center; color: #1B2631; font-size: 2.5rem;'>INFORME GENERAL PDI'S CHINALCO</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #1B2631; font-size: 2.5rem; margin-top: 10px;'>INFORME GENERAL PDI'S CHINALCO</h1>", unsafe_allow_html=True)
 with col_logo2:
-    if logo_chinalco: st.markdown(f'<div style="text-align: right;"><img src="data:image/jpeg;base64,{logo_chinalco}" width="180"></div>', unsafe_allow_html=True)
+    if logo_chinalco: 
+        st.markdown(f'<div style="text-align: right;"><img src="data:image/jpeg;base64,{logo_chinalco}" width="180"></div>', unsafe_allow_html=True)
 
 # 4. CARGA DE DATOS
 @st.cache_data
@@ -84,6 +88,7 @@ try:
         df_counts = df_final[col_tipo].value_counts().reset_index()
         df_counts.columns = [col_tipo, 'CANTIDAD']
         
+        # Colores corporativos (Azul, Naranja, Verde)
         fig_pie = px.pie(df_counts, values='CANTIDAD', names=col_tipo, 
                          color_discrete_sequence=['#1A5276', '#E67E22', '#1D8348'])
         fig_pie.update_traces(textinfo='value+percent', textposition='outside')
@@ -99,9 +104,9 @@ try:
             st.markdown(f"<h3 class='titulo-seccion'>📝 Acciones Específicas: {persona_sel}</h3>", unsafe_allow_html=True)
             detalle = df_final[[col_habilidad, col_tipo, col_accion_texto]]
             detalle.columns = ['HABILIDAD', 'MODELO', 'ACCIÓN ESPECÍFICA']
-            st.table(detalle) # Usamos st.table para que sea vea más formal como un informe
+            st.table(detalle) 
         else:
-            st.info("💡 Selecciona un colaborador en el menú lateral para ver el desglose de sus acciones específicas.")
+            st.info("💡 Selecciona un colaborador en el menú lateral para ver sus acciones detalladas.")
 
 except Exception as e:
-    st.error("Error al procesar el informe. Por favor, verifica el archivo de datos.")
+    st.error(f"Error al cargar el informe: {e}")
