@@ -27,36 +27,25 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. FUNCIÓN PARA CARGAR LOGOS (CORREGIDA)
+# 2. CARGA DE LOGOS
 def get_image_base64(path):
     if os.path.exists(path):
         with open(path, "rb") as f:
             return base64.b64encode(f.read()).decode()
     return None
 
-# 3. ENCABEZADO CON LOGOS Y TÍTULO
 col_logo1, col_titulo, col_logo2 = st.columns([1, 3, 1])
-
-# Intentar cargar con los nombres exactos que mencionaste
 logo_spira = get_image_base64("images.png") 
 logo_chinalco = get_image_base64("minera_chinalco_peru_sa_logo-Mayra-Fierro.jpg")
 
 with col_logo1:
-    if logo_spira: 
-        st.markdown(f'<img src="data:image/png;base64,{logo_spira}" width="180">', unsafe_allow_html=True)
-    else:
-        st.write("⚠️ Logo Spira no encontrado") # Esto te ayudará a saber si el nombre es correcto
-
+    if logo_spira: st.markdown(f'<img src="data:image/png;base64,{logo_spira}" width="180">', unsafe_allow_html=True)
 with col_titulo:
-    st.markdown("<h1 style='text-align: center; color: #1B2631; font-size: 2.5rem; margin-top: 10px;'>INFORME GENERAL PDI'S CHINALCO</h1>", unsafe_allow_html=True)
-
+    st.markdown("<h1 style='text-align: center; color: #1B2631; font-size: 2.2rem; margin-top: 10px;'>INFORME GENERAL PDI'S CHINALCO</h1>", unsafe_allow_html=True)
 with col_logo2:
-    if logo_chinalco: 
-        st.markdown(f'<div style="text-align: right;"><img src="data:image/jpeg;base64,{logo_chinalco}" width="180"></div>', unsafe_allow_html=True)
-    else:
-        st.write("⚠️ Logo Chinalco no encontrado")
+    if logo_chinalco: st.markdown(f'<div style="text-align: right;"><img src="data:image/jpeg;base64,{logo_chinalco}" width="180"></div>', unsafe_allow_html=True)
 
-# 4. CARGA DE DATOS
+# 3. CARGA DE DATOS
 @st.cache_data
 def load_data():
     try:
@@ -77,11 +66,21 @@ try:
         col_recurso_desc = [c for c in df.columns if 'RECURSO' in c and 'TIPO' not in c][0]
         col_accion_texto = [c for c in df.columns if 'ACCION' in c or 'ACCIÓN' in c][0]
 
-        # --- PANEL LATERAL ---
-        st.sidebar.header("Filtros de Selección")
+        # PANEL LATERAL
         persona_sel = st.sidebar.selectbox("Seleccionar Colaborador:", ["TODOS"] + sorted(df[col_persona].unique()))
-        
         df_final = df if persona_sel == "TODOS" else df[df[col_persona] == persona_sel]
 
-        # --- 1. RESUMEN DE INDICADORES ---
-        st.markdown(f"<h2 class='titulo-seccion'>👤 {'Análisis Consolidado' if persona_sel == 'TODOS' else 'Detalle Individual: ' + persona_
+        # INDICADORES
+        txt_header = "Análisis Consolidado" if persona_sel == "TODOS" else f"Detalle Individual: {persona_sel}"
+        st.markdown(f"<h2 class='titulo-seccion'>👤 {txt_header}</h2>", unsafe_allow_html=True)
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Cantidad de PDI's", len(df_final[col_persona].unique()))
+        m2.metric("Cantidad de Habilidades", len(df_final[col_habilidad].unique()))
+        m3.metric("Total de Acciones", len(df_final))
+
+        # GRÁFICO
+        st.markdown("<h3 class='titulo-seccion'>📊 Distribución de Acciones por PDI</h3>", unsafe_allow_html=True)
+        df_counts = df_final[col_tipo].value_counts().reset_index()
+        df_counts.columns = [col_tipo, 'CANTIDAD']
+        fig_pie = px.pie(df_counts, values='CANTIDAD', names=col_
