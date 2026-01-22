@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import base64
+import os
 
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="Informe PDI Chinalco", layout="wide")
@@ -26,28 +27,34 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. FUNCIÓN PARA CARGAR LOGOS EN BASE64
+# 2. FUNCIÓN PARA CARGAR LOGOS (CORREGIDA)
 def get_image_base64(path):
-    try:
+    if os.path.exists(path):
         with open(path, "rb") as f:
             return base64.b64encode(f.read()).decode()
-    except: return None
+    return None
 
 # 3. ENCABEZADO CON LOGOS Y TÍTULO
 col_logo1, col_titulo, col_logo2 = st.columns([1, 3, 1])
 
-# Nombres de archivos según tu repositorio
+# Intentar cargar con los nombres exactos que mencionaste
 logo_spira = get_image_base64("images.png") 
 logo_chinalco = get_image_base64("minera_chinalco_peru_sa_logo-Mayra-Fierro.jpg")
 
 with col_logo1:
     if logo_spira: 
         st.markdown(f'<img src="data:image/png;base64,{logo_spira}" width="180">', unsafe_allow_html=True)
+    else:
+        st.write("⚠️ Logo Spira no encontrado") # Esto te ayudará a saber si el nombre es correcto
+
 with col_titulo:
     st.markdown("<h1 style='text-align: center; color: #1B2631; font-size: 2.5rem; margin-top: 10px;'>INFORME GENERAL PDI'S CHINALCO</h1>", unsafe_allow_html=True)
+
 with col_logo2:
     if logo_chinalco: 
         st.markdown(f'<div style="text-align: right;"><img src="data:image/jpeg;base64,{logo_chinalco}" width="180"></div>', unsafe_allow_html=True)
+    else:
+        st.write("⚠️ Logo Chinalco no encontrado")
 
 # 4. CARGA DE DATOS
 @st.cache_data
@@ -77,36 +84,4 @@ try:
         df_final = df if persona_sel == "TODOS" else df[df[col_persona] == persona_sel]
 
         # --- 1. RESUMEN DE INDICADORES ---
-        st.markdown(f"<h2 class='titulo-seccion'>👤 {'Análisis Consolidado' if persona_sel == 'TODOS' else 'Detalle Individual: ' + persona_sel}</h2>", unsafe_allow_html=True)
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Cantidad de PDI's", len(df_final[col_persona].unique()))
-        m2.metric("Cantidad de Habilidades", len(df_final[col_habilidad].unique()))
-        m3.metric("Total de Acciones", len(df_final))
-
-        # --- 2. GRÁFICO DE DISTRIBUCIÓN ---
-        st.markdown("<h3 class='titulo-seccion'>📊 Distribución de Acciones por PDI</h3>", unsafe_allow_html=True)
-        df_counts = df_final[col_tipo].value_counts().reset_index()
-        df_counts.columns = [col_tipo, 'CANTIDAD']
-        
-        # Colores corporativos (Azul, Naranja, Verde)
-        fig_pie = px.pie(df_counts, values='CANTIDAD', names=col_tipo, 
-                         color_discrete_sequence=['#1A5276', '#E67E22', '#1D8348'])
-        fig_pie.update_traces(textinfo='value+percent', textposition='outside')
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-        # --- 3. CUADRO RESUMEN DE RECURSOS ---
-        st.markdown("<h3 class='titulo-seccion'>📋 Cuadro Resumen de Recursos por Tipo</h3>", unsafe_allow_html=True)
-        resumen_tabla = df_final.groupby([col_tipo, col_recurso_desc]).size().reset_index(name='TOTAL')
-        st.table(resumen_tabla)
-
-        # --- 4. ACCIONES DETALLADAS (SOLO SI SE FILTRA POR PERSONA) ---
-        if persona_sel != "TODOS":
-            st.markdown(f"<h3 class='titulo-seccion'>📝 Acciones Específicas: {persona_sel}</h3>", unsafe_allow_html=True)
-            detalle = df_final[[col_habilidad, col_tipo, col_accion_texto]]
-            detalle.columns = ['HABILIDAD', 'MODELO', 'ACCIÓN ESPECÍFICA']
-            st.table(detalle) 
-        else:
-            st.info("💡 Selecciona un colaborador en el menú lateral para ver sus acciones detalladas.")
-
-except Exception as e:
-    st.error(f"Error al cargar el informe: {e}")
+        st.markdown(f"<h2 class='titulo-seccion'>👤 {'Análisis Consolidado' if persona_sel == 'TODOS' else 'Detalle Individual: ' + persona_
